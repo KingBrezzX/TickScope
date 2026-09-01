@@ -26,13 +26,11 @@
 <header class="topbar">
 
     <div class="brand">
-
         <h1>TickScope</h1>
 
         <span>
             Server Performance Monitor
         </span>
-
     </div>
 
     <div class="status">
@@ -50,12 +48,32 @@
 
 <main>
 
-    <!-- PERFORMANCE CARDS -->
+    <!-- UPTIME -->
 
     <section class="cards">
 
         <div class="card">
-            <span>TPS</span>
+
+            <span>
+                Server Uptime
+            </span>
+
+            <strong id="uptime">
+                --
+            </strong>
+
+            <small>
+                Current session
+            </small>
+
+        </div>
+
+
+        <div class="card">
+
+            <span>
+                TPS
+            </span>
 
             <strong id="tps">
                 --
@@ -64,11 +82,15 @@
             <small>
                 Ticks Per Second
             </small>
+
         </div>
 
 
         <div class="card">
-            <span>MSPT</span>
+
+            <span>
+                MSPT
+            </span>
 
             <strong id="mspt">
                 --
@@ -77,11 +99,15 @@
             <small>
                 Milliseconds Per Tick
             </small>
+
         </div>
 
 
         <div class="card">
-            <span>Players</span>
+
+            <span>
+                Players
+            </span>
 
             <strong id="players">
                 --
@@ -90,11 +116,15 @@
             <small>
                 Online Players
             </small>
+
         </div>
 
 
         <div class="card">
-            <span>Loaded Chunks</span>
+
+            <span>
+                Loaded Chunks
+            </span>
 
             <strong id="chunks">
                 --
@@ -103,11 +133,15 @@
             <small>
                 Currently Loaded
             </small>
+
         </div>
 
 
         <div class="card">
-            <span>Entities</span>
+
+            <span>
+                Entities
+            </span>
 
             <strong id="entities">
                 --
@@ -116,11 +150,15 @@
             <small>
                 Loaded Entities
             </small>
+
         </div>
 
 
         <div class="card">
-            <span>Tile Entities</span>
+
+            <span>
+                Tile Entities
+            </span>
 
             <strong id="tiles">
                 --
@@ -129,18 +167,20 @@
             <small>
                 Loaded Tile Entities
             </small>
+
         </div>
 
     </section>
 
 
-    <!-- PERFORMANCE ANALYSIS -->
+    <!-- PERFORMANCE -->
 
     <section class="panel">
 
         <div class="panel-title">
 
             <div>
+
                 <h2>
                     Performance Analysis
                 </h2>
@@ -148,6 +188,7 @@
                 <p>
                     Real-time server health
                 </p>
+
             </div>
 
             <span
@@ -218,6 +259,48 @@
     </section>
 
 
+    <!-- SPIKE TIMELINE -->
+
+    <section class="panel">
+
+        <div class="panel-title">
+
+            <div>
+
+                <h2>
+                    Spike Timeline
+                </h2>
+
+                <p>
+                    Recent TPS/MSPT performance spikes
+                </p>
+
+            </div>
+
+            <button
+                type="button"
+                onclick="loadSpikes()"
+            >
+                Refresh
+            </button>
+
+        </div>
+
+
+        <div
+            id="spikes"
+            class="timeline"
+        >
+
+            <div class="empty">
+                Loading spike history...
+            </div>
+
+        </div>
+
+    </section>
+
+
     <!-- LAG HOTSPOTS -->
 
     <section class="panel">
@@ -250,9 +333,11 @@
             id="hotspots"
             class="list"
         >
+
             <div class="empty">
                 Loading...
             </div>
+
         </div>
 
     </section>
@@ -271,7 +356,7 @@
                 </h2>
 
                 <p>
-                    Real-time redstone activity
+                    Detected redstone activity
                 </p>
 
             </div>
@@ -290,9 +375,11 @@
             id="redstone"
             class="list"
         >
+
             <div class="empty">
                 Loading...
             </div>
+
         </div>
 
     </section>
@@ -330,9 +417,11 @@
             id="recommendations"
             class="list"
         >
+
             <div class="empty">
                 Waiting for analysis...
             </div>
+
         </div>
 
     </section>
@@ -366,10 +455,7 @@
         </div>
 
 
-        <div
-            id="serverInfo"
-            class="server-grid"
-        >
+        <div class="server-grid">
 
             <div class="info-box">
 
@@ -426,6 +512,20 @@
 
     </section>
 
+
+    <!-- DISCONNECT -->
+
+    <section class="disconnect-area">
+
+        <button
+            type="button"
+            onclick="disconnectServer()"
+        >
+            Disconnect Server
+        </button>
+
+    </section>
+
 </main>
 
 
@@ -438,16 +538,13 @@
 </footer>
 
 
-<!--
-    IMPORTANT:
-    config.js MUST load before app.js.
-    Never put the server token directly
-    into this HTML file.
--->
-
 <script src="config.js"></script>
 
 <script src="app.js"></script>
+
+<script src="spikes.js"></script>
+
+<script src="logout.js"></script>
 
 </body>
                 </html>
