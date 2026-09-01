@@ -1,0 +1,5 @@
+prefix: "&b&lTickScope &8» "
+no-permission: "&c你没有权限。"
+token: "&aTickScope API Key: &f{token}"
+web-started: "&aWeb API 已启动于 &f{host}:{port}"
+reloaded: "&aTickScope 已成功重载。"

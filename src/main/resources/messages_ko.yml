@@ -1,0 +1,5 @@
+prefix: "&b&lTickScope &8» "
+no-permission: "&c권한이 없습니다."
+token: "&aTickScope API Key: &f{token}"
+web-started: "&aWeb API가 &f{host}:{port}&a에서 시작되었습니다."
+reloaded: "&aTickScope가 성공적으로 다시 로드되었습니다."

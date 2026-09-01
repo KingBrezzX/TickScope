@@ -1,0 +1,5 @@
+prefix: "&b&lTickScope &8» "
+no-permission: "&cУ вас нет прав."
+token: "&aAPI Key TickScope: &f{token}"
+web-started: "&aWeb API запущен на &f{host}:{port}"
+reloaded: "&aTickScope успешно перезагружен."

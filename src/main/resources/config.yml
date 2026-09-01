@@ -1,4 +1,47 @@
-# TickScope - release configuration
+# ============================================================
+# TickScope - Main Configuration
+# ============================================================
+# Semua nilai di file ini sengaja dibuat configurable.
+# Setelah mengubah config, gunakan /tickscope reload bila tersedia.
+#
+# CATATAN:
+# server.ip/server.port = alamat Minecraft yang ditampilkan di web.
+# web.host/web.port      = alamat tempat API TickScope LISTEN.
+# Jangan samakan keduanya kecuali memang allocation-nya sama.
+# ============================================================
+
+server:
+  # Nama server yang ditampilkan dashboard.
+  name: "ZyrexSMP"
+
+  # IP/domain Minecraft Java server.
+  # Contoh: business3.astrixhost.web.id
+  ip: "business3.astrixhost.web.id"
+
+  # Port Minecraft Java server.
+  # Contoh dari allocation kamu: 5066
+  port: 5066
+
+language:
+  # Bahasa default plugin.
+  # id = Indonesia
+  # en = English
+  # vi = Vietnamese
+  # zh = Chinese (Simplified)
+  # ko = Korean
+  # ru = Russian
+  # th = Thai
+  default: "id"
+
+  available:
+    - "id"
+    - "en"
+    - "vi"
+    - "zh"
+    - "ko"
+    - "ru"
+    - "th"
+
 monitor:
   enabled: true
   metrics-interval-ms: 1000
@@ -41,32 +84,81 @@ recommendations:
 spikes:
   interval-ms: 1000
 
+# ============================================================
+# TickScope API / Web
+# ============================================================
 web:
   enabled: true
-  host: "127.0.0.1"
-  port: 8765
-  authentication:
+
+  # Interface bind API.
+  # 127.0.0.1 = hanya server itu sendiri.
+  # 0.0.0.0   = bisa menerima koneksi dari allocation/network hosting.
+  host: "0.0.0.0"
+
+  # PORT KHUSUS TICKSCOPE API.
+  # Contoh allocation kedua kamu: 19132.
+  # Jika port ini dipakai Geyser/layanan lain, gunakan allocation kosong lain.
+  port: 19132
+
+  # URL HTTPS publik yang dipakai GitHub Pages/custom web.
+  # Contoh: https://api.zyrexsmp.com
+  # Kosongkan jika belum punya public HTTPS endpoint.
+  public-url: ""
+
+  cors:
     enabled: true
+
+    # "*" = izinkan browser client dari origin mana pun.
+    # Untuk production, lebih aman isi domain web yang kamu percaya.
+    #
+    # Contoh:
+    # allowed-origins:
+    #   - "https://username.github.io"
+    #   - "https://web.zyrexsmp.com"
+    allowed-origins:
+      - "*"
+
+  authentication:
+    # Jika true, endpoint API membutuhkan satu Key TickScope.
+    enabled: true
+
+    # true = plugin membuat TS_... otomatis jika belum ada.
+    # Key disimpan di server, BUKAN di GitHub repository.
     auto-generate-token: true
+
   realtime:
     enabled: true
     interval-ms: 1000
 
-# Explicit administrator remediation actions.
-# These actions are NEVER automatic unless auto-ban is explicitly requested by an admin.
+# ============================================================
+# Admin actions
+# ============================================================
 admin-actions:
   enabled: true
+
   break:
+    # 0 = hanya target/core yang ditentukan.
+    # Ubah sesuai kebutuhan.
     radius: 0
+
     replace-core-with-sign: true
+
   sign:
     lines:
       - "&c&lLAG MACHINE"
       - "&7Disabled by"
       - "&bTickScope"
       - "&8Admin Action"
+
   ban:
     enabled: true
+
+    # Bisa diubah sesuka kamu.
     duration-days: 7
+
+    # Alasan ban bisa diubah.
     reason: "Lag machine detected"
+
+    # Jika true, action destroy dari admin dapat memicu ban
+    # sesuai implementasi/plugin permission yang digunakan.
     auto-ban-on-destroy: true

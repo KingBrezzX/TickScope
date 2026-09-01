@@ -1,0 +1,5 @@
+prefix: "&b&lTickScope &8» "
+no-permission: "&cKamu tidak memiliki izin."
+token: "&aAPI Key TickScope: &f{token}"
+web-started: "&aWeb API aktif di &f{host}:{port}"
+reloaded: "&aTickScope berhasil dimuat ulang."

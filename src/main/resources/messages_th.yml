@@ -1,0 +1,5 @@
+prefix: "&b&lTickScope &8» "
+no-permission: "&cคุณไม่มีสิทธิ์"
+token: "&aTickScope API Key: &f{token}"
+web-started: "&aWeb API เริ่มทำงานที่ &f{host}:{port}"
+reloaded: "&aโหลด TickScope ใหม่สำเร็จ"
