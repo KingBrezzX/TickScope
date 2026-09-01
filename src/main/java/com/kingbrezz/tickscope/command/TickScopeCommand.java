@@ -13,19 +13,19 @@ public final class TickScopeCommand implements CommandExecutor {
 
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.hasPermission("tickscope.admin")) {
-            sender.sendMessage(ChatColor.RED + "No permission.");
+            sender.sendMessage(plugin.getMessageManager().get("no-permission", "&cNo permission."));
             return true;
         }
 
         if (command.getName().equalsIgnoreCase("token")) {
             sender.sendMessage(ChatColor.AQUA + "TickScope Server Token");
-            sender.sendMessage(ChatColor.WHITE + plugin.getTokenManager().getToken());
+            sender.sendMessage(plugin.getMessageManager().format("token", "&aTickScope API Key: &f{token}", java.util.Map.of("token", plugin.getTokenManager().getToken())));
             sender.sendMessage(ChatColor.GRAY + "Keep this token private.");
             return true;
         }
 
         if (args.length > 0 && args[0].equalsIgnoreCase("token")) {
-            sender.sendMessage(ChatColor.AQUA + "Token: " + ChatColor.WHITE + plugin.getTokenManager().getToken());
+            sender.sendMessage(plugin.getMessageManager().format("token", "&aTickScope API Key: &f{token}", java.util.Map.of("token", plugin.getTokenManager().getToken())));
             return true;
         }
 
@@ -54,6 +54,12 @@ public final class TickScopeCommand implements CommandExecutor {
             return true;
         }
 
+        if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
+            plugin.reloadRuntime();
+            sender.sendMessage(ChatColor.GREEN + "TickScope configuration and runtime services reloaded.");
+            return true;
+        }
+
         if (args.length == 0 || args[0].equalsIgnoreCase("status")) {
             MetricsSnapshot d = plugin.getPerformanceMonitor().collect();
             sender.sendMessage(ChatColor.AQUA + "===== TickScope =====");
@@ -63,12 +69,6 @@ public final class TickScopeCommand implements CommandExecutor {
             sender.sendMessage(ChatColor.WHITE + "Chunks: " + ChatColor.YELLOW + d.loadedChunks());
             sender.sendMessage(ChatColor.WHITE + "Entities: " + ChatColor.YELLOW + d.entities());
             sender.sendMessage(ChatColor.WHITE + "Tiles: " + ChatColor.YELLOW + d.tileEntities());
-            return true;
-        }
-
-        if (args[0].equalsIgnoreCase("reload")) {
-            plugin.reloadRuntime();
-            sender.sendMessage(ChatColor.GREEN + "TickScope configuration and runtime services reloaded.");
             return true;
         }
 
