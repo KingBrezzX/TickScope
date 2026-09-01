@@ -1,7 +1,26 @@
-const API = "";
+const config = window.TICKSCOPE_CONFIG || {};
+
+const API = config.apiBase || "";
+const TOKEN = config.token || "";
+
+function headers() {
+
+    const result = {
+        "Accept": "application/json"
+    };
+
+    if (TOKEN) {
+        result["Authorization"] =
+            "Bearer " + TOKEN;
+    }
+
+    return result;
+}
 
 function setText(id, value) {
-    const element = document.getElementById(id);
+
+    const element =
+        document.getElementById(id);
 
     if (element) {
         element.textContent = value;
@@ -10,8 +29,15 @@ function setText(id, value) {
 
 function updateMetrics(data) {
 
-    setText("tps", Number(data.tps).toFixed(2));
-    setText("mspt", Number(data.mspt).toFixed(1));
+    setText(
+        "tps",
+        Number(data.tps).toFixed(2)
+    );
+
+    setText(
+        "mspt",
+        Number(data.mspt).toFixed(1)
+    );
 
     setText("players", data.players);
     setText("chunks", data.loadedChunks);
@@ -46,21 +72,39 @@ function updateMetrics(data) {
 
     let severity = "HEALTHY";
 
-    if (data.mspt >= 100 || data.tps < 15) {
+    if (
+        data.mspt >= 100 ||
+        data.tps < 15
+    ) {
         severity = "CRITICAL";
-    } else if (data.mspt >= 50 || data.tps < 18) {
+
+    } else if (
+        data.mspt >= 50 ||
+        data.tps < 18
+    ) {
         severity = "WARNING";
     }
 
-    setText("severity", severity);
+    setText(
+        "severity",
+        severity
+    );
 }
 
 function connectRealtime() {
 
-    const stream =
-        new EventSource(
-            API + "/api/stream"
+    const url =
+        API +
+        "/api/stream" +
+        (
+            TOKEN
+                ? "?token=" +
+                  encodeURIComponent(TOKEN)
+                : ""
         );
+
+    const stream =
+        new EventSource(url);
 
     stream.onopen = () => {
 
@@ -71,7 +115,8 @@ function connectRealtime() {
 
         document.getElementById(
             "statusDot"
-        ).style.background = "#ffffff";
+        ).style.background =
+            "#ffffff";
     };
 
     stream.onmessage = event => {
@@ -79,9 +124,14 @@ function connectRealtime() {
         try {
 
             const data =
-                JSON.parse(event.data);
+                JSON.parse(
+                    event.data
+                );
 
-            if (data.type === "metrics") {
+            if (
+                data.type ===
+                "metrics"
+            ) {
                 updateMetrics(data);
             }
 
@@ -103,7 +153,8 @@ function connectRealtime() {
 
         document.getElementById(
             "statusDot"
-        ).style.background = "#777";
+        ).style.background =
+            "#777";
     };
 }
 
@@ -111,12 +162,16 @@ async function getJson(endpoint) {
 
     const response =
         await fetch(
-            API + endpoint
+            API + endpoint,
+            {
+                headers: headers()
+            }
         );
 
     if (!response.ok) {
         throw new Error(
-            "HTTP " + response.status
+            "HTTP " +
+            response.status
         );
     }
 
@@ -138,8 +193,10 @@ async function loadHotspots() {
             );
 
         if (!data.length) {
+
             container.textContent =
                 "No lag hotspots detected.";
+
             return;
         }
 
@@ -152,7 +209,8 @@ async function loadHotspots() {
                         </strong>
 
                         <small>
-                            World: ${item.world}
+                            World:
+                            ${item.world}
                             <br>
                             Location:
                             ${item.x},
@@ -160,7 +218,9 @@ async function loadHotspots() {
                             ${item.z}
                             <br>
                             Score:
-                            ${Number(item.score).toFixed(1)}
+                            ${Number(
+                                item.score
+                            ).toFixed(1)}
                         </small>
                     </div>
                 `)
@@ -188,8 +248,10 @@ async function loadRedstone() {
             );
 
         if (!data.length) {
+
             container.textContent =
                 "No redstone hotspots detected.";
+
             return;
         }
 
@@ -197,24 +259,33 @@ async function loadRedstone() {
             data.slice(0, 20)
                 .map(item => `
                     <div class="item">
+
                         <strong>
                             Redstone Activity
                         </strong>
 
                         <small>
-                            World: ${item.world}
+                            World:
+                            ${item.world}
                             <br>
+
                             Location:
                             ${item.x},
                             ${item.y},
                             ${item.z}
+
                             <br>
+
                             Player:
-                            ${item.player ?? "Unknown"}
+                            ${item.player ??
+                                "Unknown"}
+
                             <br>
+
                             Activity:
                             ${item.activity}
                         </small>
+
                     </div>
                 `)
                 .join("");
@@ -244,24 +315,30 @@ async function loadRecommendations() {
 
             container.textContent =
                 "No problems detected.";
+
             return;
         }
 
         container.innerHTML =
             data.map(item => `
                 <div class="item">
+
                     <strong>
                         ${item.severity}
-                        — ${item.cause}
+                        —
+                        ${item.cause}
                     </strong>
 
                     <small>
                         ${item.recommendation}
+
                         <br>
+
                         Confidence:
                         ${(item.confidence * 100)
                             .toFixed(0)}%
                     </small>
+
                 </div>
             `).join("");
 
