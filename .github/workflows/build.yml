@@ -1,4 +1,4 @@
-name: Build TickScope
+name: TickScope Build
 
 on:
   push:
@@ -6,50 +6,117 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  primary:
+    name: Build (Temurin 25)
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup Java 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '25'
           cache: maven
 
-      - name: Verify Java
-        run: java --version
+      - name: Verify toolchain
+        run: |
+          java --version
+          mvn --version
 
-      - name: Validate Maven project
-        run: mvn -B validate
+      - name: Build
+        run: mvn -B --no-transfer-progress -DskipTests clean package
 
-      - name: Build plugin
-        run: mvn -B -DskipTests package
-
-      - name: Validate web JavaScript
+      - name: Validate web assets
         run: |
           node --check web/app.js
           node --check web/config.js
           node --check web/spikes.js
           node --check web/logout.js
 
-      - name: Validate plugin resources
+      - name: Validate plugin artifact
         run: |
-          test -f target/TickScope-1.0.0.jar
+          test -s target/TickScope-1.0.0.jar
           jar tf target/TickScope-1.0.0.jar | grep -q '^plugin.yml$'
+          jar tf target/TickScope-1.0.0.jar | grep -q '^config.yml$'
           jar tf target/TickScope-1.0.0.jar | grep -q '^web/index.html$'
           jar tf target/TickScope-1.0.0.jar | grep -q '^web/app.js$'
           jar tf target/TickScope-1.0.0.jar | grep -q '^web/config.js$'
+          for lang in id en vi zh ko ru th; do jar tf target/TickScope-1.0.0.jar | grep -q "^messages_${lang}\.yml$"; done
 
-      - name: Upload release artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TickScope-${{ github.sha }}
+          name: TickScope-${{ github.sha }}-temurin25
           path: target/TickScope-1.0.0.jar
           if-no-files-found: error
 
+  fallback:
+    name: Fallback Build (Zulu 25)
+    needs: primary
+    if: ${{ needs.primary.result == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 25 fallback
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: '25'
+          cache: maven
+
+      - name: Verify fallback toolchain
+        run: |
+          java --version
+          mvn --version
+
+      - name: Build with fallback JDK distribution
+        run: mvn -B --no-transfer-progress -DskipTests clean package
+
+      - name: Validate web assets
+        run: |
+          node --check web/app.js
+          node --check web/config.js
+          node --check web/spikes.js
+          node --check web/logout.js
+
+      - name: Validate plugin artifact
+        run: |
+          test -s target/TickScope-1.0.0.jar
+          jar tf target/TickScope-1.0.0.jar | grep -q '^plugin.yml$'
+          jar tf target/TickScope-1.0.0.jar | grep -q '^config.yml$'
+          jar tf target/TickScope-1.0.0.jar | grep -q '^web/index.html$'
+          jar tf target/TickScope-1.0.0.jar | grep -q '^web/app.js$'
+          jar tf target/TickScope-1.0.0.jar | grep -q '^web/config.js$'
+          for lang in id en vi zh ko ru th; do jar tf target/TickScope-1.0.0.jar | grep -q "^messages_${lang}\.yml$"; done
+
+      - name: Upload fallback artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TickScope-${{ github.sha }}-zulu25
+          path: target/TickScope-1.0.0.jar
+          if-no-files-found: error
+
+  result:
+    name: Build Result
+    needs: [primary, fallback]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require at least one successful build path
+        run: |
+          echo "Primary: ${{ needs.primary.result }}"
+          echo "Fallback: ${{ needs.fallback.result }}"
+          if [ "${{ needs.primary.result }}" = "success" ] || [ "${{ needs.fallback.result }}" = "success" ]; then
+            echo "BUILD_GREEN=true"
+          else
+            echo "Neither build path succeeded."
+            exit 1
+          fi

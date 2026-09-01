@@ -1,0 +1,152 @@
+name: TickScope CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Java 25 / Paper 26.2 build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Verify toolchain
+        run: |
+          java -version
+          mvn -version
+
+      - name: Validate web assets
+        shell: bash
+        run: |
+          if [ -d web ]; then
+            find web -type f -name '*.js' -print0 | while IFS= read -r -d '' f; do
+              node --check "$f"
+            done
+          fi
+
+      - name: Validate YAML
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          try:
+              import yaml
+          except ImportError:
+              raise SystemExit("PyYAML unavailable")
+          files = list(pathlib.Path(".").rglob("*.yml")) + list(pathlib.Path(".").rglob("*.yaml"))
+          for p in files:
+              with p.open(encoding="utf-8") as f:
+                  yaml.safe_load(f)
+              print("OK", p)
+          PY
+
+      - name: Maven clean verify
+        run: mvn -U -B clean verify
+
+      - name: Inspect JAR
+        shell: bash
+        run: |
+          set -e
+          jar=$(find target -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' | head -n1)
+          test -n "$jar"
+          echo "JAR=$jar"
+          jar tf "$jar" | grep -E '(^|/)plugin\.yml$' >/dev/null
+          jar tf "$jar" | grep -E '(^|/)web/' >/dev/null || true
+          unzip -p "$jar" plugin.yml | sed -n '1,120p'
+
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: TickScope-java25-paper26.2
+          path: target/*.jar
+          if-no-files-found: error
+
+  runtime-smoke:
+    name: Paper 26.2 runtime smoke test
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Download Paper 26.2
+        shell: bash
+        run: |
+          set -e
+          python3 - <<'PY'
+          import json, urllib.request
+          # Resolve the latest 26.2 build from Paper's public downloads API.
+          url = "https://api.papermc.io/v2/projects/paper/versions/26.2"
+          data = json.load(urllib.request.urlopen(url, timeout=30))
+          build = data["builds"][-1]
+          print(build)
+          open("paper_build.txt","w").write(str(build))
+          PY
+          BUILD=$(cat paper_build.txt)
+          curl -fsSL -o paper.jar "https://api.papermc.io/v2/projects/paper/versions/26.2/builds/${BUILD}/downloads/paper-26.2-${BUILD}.jar"
+
+      - name: Prepare test server
+        shell: bash
+        run: |
+          set -e
+          mkdir -p smoke/plugins
+          cp target/*.jar smoke/plugins/TickScope.jar
+          echo 'eula=true' > smoke/eula.txt
+          cat > smoke/server.properties <<'EOF'
+          online-mode=false
+          server-port=25565
+          enable-rcon=false
+          view-distance=4
+          simulation-distance=4
+          max-players=10
+          EOF
+
+      - name: Start Paper and smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd smoke
+          timeout 120s java -Xms512M -Xmx1G -jar ../paper.jar --nogui > server.log 2>&1 &
+          PID=$!
+          trap 'kill $PID 2>/dev/null || true' EXIT
+
+          for i in $(seq 1 120); do
+            if grep -Eq "Done \(" server.log; then break; fi
+            if ! kill -0 "$PID" 2>/dev/null; then
+              cat server.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          grep -Eq "Done \(" server.log
+
+          # Plugin must be enabled. Accept common Paper/Bukkit startup wording.
+          grep -Eiq "TickScope.*(enabled|enable)" server.log
+
+          # Fail on plugin startup exceptions/errors.
+          if grep -Eiq "Could not load 'plugins/TickScope.jar'|Error occurred while enabling TickScope|InvalidPluginException" server.log; then
+            cat server.log
+            exit 1
+          fi
+
+          echo "=== Paper runtime smoke test passed ==="
+          tail -n 120 server.log

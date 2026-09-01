@@ -9,13 +9,13 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '25'
           cache: maven
-      - run: mvn -B -DskipTests clean package
+      - run: mvn -B --no-transfer-progress -DskipTests clean package
       - name: SHA-256
         run: sha256sum target/TickScope-1.0.0.jar | tee target/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4

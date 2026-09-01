@@ -1,0 +1,65 @@
+name: Paper 26.2 Runtime Smoke Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Build plugin
+        run: mvn -B --no-transfer-progress -DskipTests clean package
+      - name: Download Paper 26.2 build 121
+        env:
+          UA: TickScope-CI/1.0 (https://github.com/)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq curl
+          response=$(curl -fsSL -H "User-Agent: $UA" https://fill.papermc.io/v3/projects/paper/versions/26.2/builds)
+          url=$(echo "$response" | jq -r 'map(select(.id == 121 and .channel == "STABLE"))[0].downloads["server:default"].url')
+          test "$url" != "null"
+          curl -fL -H "User-Agent: $UA" "$url" -o paper.jar
+      - name: Start isolated Paper server
+        run: |
+          set -euo pipefail
+          mkdir -p test-server/plugins
+          cp target/TickScope-1.0.0.jar test-server/plugins/
+          printf 'eula=true\n' > test-server/eula.txt
+          printf 'server-port=25565\nserver-ip=127.0.0.1\nonline-mode=false\n' > test-server/server.properties
+          cp paper.jar test-server/paper.jar
+          cd test-server
+          (java -Xms1G -Xmx1G -jar paper.jar --nogui > server.log 2>&1 & echo $! > server.pid)
+          for i in $(seq 1 120); do grep -q 'Done (' server.log && break; grep -q 'ERROR' server.log && { cat server.log; exit 1; } || true; sleep 2; done
+          grep -q 'Done (' server.log
+          grep -q 'TickScope enabled' server.log
+      - name: Verify API health and auth
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8765/api/health && break || sleep 1; done
+          curl -fsS http://127.0.0.1:8765/api/health | grep -q '"status":"ok"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/api/status)" = "401"
+          token=$(cat test-server/plugins/TickScope/server.token)
+          curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:8765/api/status | grep -q '"tps"'
+          curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:8765/api/server | grep -q '"apiOnline":true'
+      - name: Verify SSE stream
+        run: |
+          token=$(cat test-server/plugins/TickScope/server.token)
+          timeout 8s curl -fsS -N -H "Authorization: Bearer $token" http://127.0.0.1:8765/api/stream | grep -m1 '"type":"metrics"'
+      - name: Stop server cleanly
+        if: always()
+        run: |
+          if [ -f test-server/server.pid ]; then kill "$(cat test-server/server.pid)" || true; fi
+          sleep 2
+          if [ -f test-server/server.log ]; then tail -100 test-server/server.log; fi
