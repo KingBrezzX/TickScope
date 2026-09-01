@@ -40,3 +40,10 @@ Monitor your Minecraft server in real time, analyze performance issues, detect l
 ## License
 
 License information will be added before the first public release.
+
+
+## Release build
+
+TickScope targets Java 25 and Paper 26.2. The repository includes GitHub Actions workflows that install Java 25, resolve the Paper API, build the shaded JAR, validate the web assets, and upload the JAR as an artifact. GitHub's `setup-java` supports Java 25 and Maven caching, and Paper's current developer setup documents Java 25 with the 26.2 API.
+
+The server generates a unique `plugins/TickScope/server.token` on first startup. Use `/token` to display it. Do not commit that file or paste the real token into GitHub. The GitHub Pages dashboard stores the token only in browser local storage.
