@@ -1,23 +1,5 @@
-(function () {
-
-    const savedApi =
-        localStorage.getItem(
-            "tickscope_api"
-        );
-
-    const savedToken =
-        localStorage.getItem(
-            "tickscope_token"
-        );
-
-    window.TICKSCOPE_CONFIG = {
-
-        apiBase:
-            savedApi || "",
-
-        token:
-            savedToken || ""
-
-    };
-
+(() => {
+  const api = localStorage.getItem("tickscope_api") || "";
+  const token = localStorage.getItem("tickscope_token") || "";
+  window.TICKSCOPE_CONFIG = { apiBase: api.replace(/\/$/, ""), token };
 })();
