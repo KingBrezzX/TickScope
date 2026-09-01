@@ -22,17 +22,56 @@ public final class RealtimeSnapshot {
         Map<String, Object> data =
                 new LinkedHashMap<>();
 
-        data.put("type", "metrics");
-        data.put("timestamp", snapshot.timestamp());
-        data.put("tick", snapshot.tick());
-        data.put("tps", snapshot.tps());
-        data.put("mspt", snapshot.mspt());
-        data.put("players", snapshot.players());
-        data.put("loadedChunks", snapshot.loadedChunks());
-        data.put("entities", snapshot.entities());
-        data.put("tileEntities", snapshot.tileEntities());
-        data.put("uptimeSeconds", snapshot.uptimeSeconds());
+        data.put(
+                "type",
+                "metrics"
+        );
+
+        data.put(
+                "timestamp",
+                snapshot.timestamp()
+        );
+
+        data.put(
+                "tick",
+                snapshot.tick()
+        );
+
+        data.put(
+                "tps",
+                snapshot.tps()
+        );
+
+        data.put(
+                "mspt",
+                snapshot.mspt()
+        );
+
+        data.put(
+                "players",
+                snapshot.players()
+        );
+
+        data.put(
+                "loadedChunks",
+                snapshot.loadedChunks()
+        );
+
+        data.put(
+                "entities",
+                snapshot.entities()
+        );
+
+        data.put(
+                "tileEntities",
+                snapshot.tileEntities()
+        );
+
+        data.put(
+                "uptimeSeconds",
+                snapshot.uptimeSeconds()
+        );
 
         return data;
     }
-
+}
