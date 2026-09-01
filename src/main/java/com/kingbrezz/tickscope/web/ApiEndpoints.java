@@ -19,7 +19,10 @@ public final class ApiEndpoints {
                 "/api/redstone",
                 "/api/entities",
                 "/api/tile-entities",
-                "/api/recommendations"
+                "/api/recommendations",
+                "/api/uptime",
+                "/api/spikes",
+                "/api/stream"
         );
     }
 

@@ -2,427 +2,188 @@ package com.kingbrezz.tickscope.web;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import com.kingbrezz.tickscope.TickScope;
-import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.Executors;
 
 public final class TickScopeWebServer {
-
     private final TickScope plugin;
-    private final Gson gson =
-            new GsonBuilder().create();
-
+    private final Gson gson = new GsonBuilder().create();
     private HttpServer server;
     private RealtimeManager realtimeManager;
 
-    public TickScopeWebServer(TickScope plugin) {
-        this.plugin = plugin;
-    }
+    public TickScopeWebServer(TickScope plugin) { this.plugin = plugin; }
 
     public void start() throws IOException {
+        String host = plugin.getConfig().getString("web.host", "127.0.0.1");
+        int port = plugin.getConfig().getInt("web.port", 8765);
+        server = HttpServer.create(new InetSocketAddress(host, port), 0);
+        realtimeManager = new RealtimeManager(plugin);
 
-        String host =
-                plugin.getConfig().getString(
-                        "web.host",
-                        "127.0.0.1"
-                );
-
-        int port =
-                plugin.getConfig().getInt(
-                        "web.port",
-                        8765
-                );
-
-        server = HttpServer.create(
-                new InetSocketAddress(
-                        host,
-                        port
-                ),
-                0
-        );
-
-        realtimeManager =
-                new RealtimeManager(plugin);
-
-        server.createContext(
-                "/api/health",
-                this::handleHealth
-        );
-
-        server.createContext(
-                "/api/status",
-                this::handleStatus
-        );
-
-        server.createContext(
-                "/api/server",
-                this::handleServer
-        );
-
-        server.createContext(
-                "/api/uptime",
-                this::handleUptime
-        );
-
-        server.createContext(
-                "/api/spikes",
-                this::handleSpikes
-        );
-
-        server.createContext(
-                "/api/hotspots",
-                this::handleHotspots
-        );
-
-        server.createContext(
-                "/api/redstone",
-                this::handleRedstone
-        );
-
-        server.createContext(
-                "/api/entities",
-                this::handleEntities
-        );
-
-        server.createContext(
-                "/api/tile-entities",
-                this::handleTileEntities
-        );
-
-        server.createContext(
-                "/api/recommendations",
-                this::handleRecommendations
-        );
-
-        server.createContext(
-                "/api/stream",
-                this::handleStream
-        );
-
-        server.setExecutor(
-                Executors.newCachedThreadPool()
-        );
-
+        server.createContext("/", this::route);
+        server.setExecutor(Executors.newCachedThreadPool());
         server.start();
-
         realtimeManager.start();
-
-        plugin.getLogger().info(
-                "TickScope web API started on "
-                        + host
-                        + ":"
-                        + port
-        );
+        plugin.getLogger().info("Dashboard: http://" + host + ":" + port + "/");
     }
 
-    private void handleHealth(
-            HttpExchange exchange
-    ) throws IOException {
-
-        send(
-                exchange,
-                200,
-                Map.of(
-                        "status",
-                        "ok",
-                        "plugin",
-                        "TickScope"
-                )
-        );
-    }
-
-    private void handleStatus(
-            HttpExchange exchange
-    ) throws IOException {
-
-        if (!authorized(exchange)) {
-            unauthorized(exchange);
+    private void route(HttpExchange ex) throws IOException {
+        String path = ex.getRequestURI().getPath();
+        if ("OPTIONS".equalsIgnoreCase(ex.getRequestMethod())) {
+            cors(ex);
+            ex.sendResponseHeaders(204, -1);
+            ex.close();
             return;
         }
 
-        send(
-                exchange,
-                200,
-                ApiData.status(plugin)
-        );
-    }
-
-    private void handleServer(
-            HttpExchange exchange
-    ) throws IOException {
-
-        if (!authorized(exchange)) {
-            unauthorized(exchange);
+        if (path.equals("/") || path.equals("/index.html") || path.equals("/connect.html")
+                || path.endsWith(".js") || path.endsWith(".css")) {
+            serveStatic(ex, path);
             return;
         }
 
-        send(
-                exchange,
-                200,
-                ApiUtil.serverInfo(plugin)
-        );
-    }
-
-    private void handleUptime(
-            HttpExchange exchange
-    ) throws IOException {
-
-        if (!authorized(exchange)) {
-            unauthorized(exchange);
+        if (!authorized(ex) && !path.equals("/api/health")) {
+            send(ex, 401, Map.of("error", "Unauthorized"));
             return;
         }
 
-        send(
-                exchange,
-                200,
-                UptimeApi.get(plugin)
-        );
+        switch (path) {
+            case "/api/health" -> send(ex, 200, Map.of("status", "ok", "plugin", "TickScope"));
+            case "/api/status" -> send(ex, 200, ApiData.status(plugin));
+            case "/api/server" -> send(ex, 200, ApiUtil.serverInfo(plugin));
+            case "/api/uptime" -> send(ex, 200, UptimeApi.get(plugin));
+            case "/api/spikes" -> send(ex, 200, SpikeApi.get(plugin));
+            case "/api/hotspots" -> send(ex, 200, ApiData.hotspots(plugin));
+            case "/api/redstone" -> send(ex, 200, ApiData.redstone(plugin));
+            case "/api/entities" -> send(ex, 200, ApiData.entities(plugin));
+            case "/api/tile-entities" -> send(ex, 200, ApiData.tileEntities(plugin));
+            case "/api/recommendations" -> send(ex, 200, ApiData.recommendations(plugin));
+            case "/api/admin/destroy" -> adminDestroy(ex);
+            case "/api/admin/ban" -> adminBan(ex);
+            case "/api/stream" -> stream(ex);
+            default -> send(ex, 404, Map.of("error", "Endpoint not found"));
+        }
     }
 
-    private void handleSpikes(
-            HttpExchange exchange
-    ) throws IOException {
-
-        if (!authorized(exchange)) {
-            unauthorized(exchange);
+    private void adminDestroy(HttpExchange ex) throws IOException {
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            send(ex, 405, Map.of("error", "Method not allowed"));
             return;
         }
-
-        send(
-                exchange,
-                200,
-                SpikeApi.get(plugin)
-        );
+        JsonObject body = readJson(ex);
+        String world = body.has("world") ? body.get("world").getAsString() : null;
+        String player = body.has("player") && !body.get("player").isJsonNull()
+                ? body.get("player").getAsString() : null;
+        if (world == null || !body.has("x") || !body.has("y") || !body.has("z")) {
+            send(ex, 400, Map.of("error", "world, x, y and z are required"));
+            return;
+        }
+        boolean autoBan = body.has("autoBan") && body.get("autoBan").getAsBoolean();
+        try {
+            send(ex, 200, AdminActionApi.destroy(plugin, world, body.get("x").getAsInt(),
+                    body.get("y").getAsInt(), body.get("z").getAsInt(), player, autoBan));
+        } catch (IllegalArgumentException e) {
+            send(ex, 400, Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            plugin.getLogger().warning("Admin destroy failed: " + e.getMessage());
+            send(ex, 500, Map.of("error", "Admin action failed"));
+        }
     }
 
-    private void handleHotspots(
-            HttpExchange exchange
-    ) throws IOException {
-
-        if (!authorized(exchange)) {
-            unauthorized(exchange);
+    private void adminBan(HttpExchange ex) throws IOException {
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            send(ex, 405, Map.of("error", "Method not allowed"));
             return;
         }
-
-        send(
-                exchange,
-                200,
-                ApiData.hotspots(plugin)
-        );
+        JsonObject body = readJson(ex);
+        String player = body.has("player") ? body.get("player").getAsString().trim() : "";
+        if (player.isBlank()) {
+            send(ex, 400, Map.of("error", "player is required"));
+            return;
+        }
+        send(ex, 200, AdminActionApi.ban(plugin, player));
     }
 
-    private void handleRedstone(
-            HttpExchange exchange
-    ) throws IOException {
-
-        if (!authorized(exchange)) {
-            unauthorized(exchange);
-            return;
-        }
-
-        send(
-                exchange,
-                200,
-                ApiData.redstone(plugin)
-        );
+    private JsonObject readJson(HttpExchange ex) throws IOException {
+        byte[] raw = ex.getRequestBody().readAllBytes();
+        if (raw.length > 32_768) throw new IOException("Request too large");
+        return gson.fromJson(new String(raw, StandardCharsets.UTF_8), JsonObject.class);
     }
 
-    private void handleEntities(
-            HttpExchange exchange
-    ) throws IOException {
-
-        if (!authorized(exchange)) {
-            unauthorized(exchange);
-            return;
-        }
-
-        send(
-                exchange,
-                200,
-                ApiData.entities(plugin)
-        );
-    }
-
-    private void handleTileEntities(
-            HttpExchange exchange
-    ) throws IOException {
-
-        if (!authorized(exchange)) {
-            unauthorized(exchange);
-            return;
-        }
-
-        send(
-                exchange,
-                200,
-                ApiData.tileEntities(plugin)
-        );
-    }
-
-    private void handleRecommendations(
-            HttpExchange exchange
-    ) throws IOException {
-
-        if (!authorized(exchange)) {
-            unauthorized(exchange);
-            return;
-        }
-
-        send(
-                exchange,
-                200,
-                ApiData.recommendations(plugin)
-        );
-    }
-
-    private void handleStream(
-            HttpExchange exchange
-    ) throws IOException {
-
-        if (!authorized(exchange)) {
-            unauthorized(exchange);
-            return;
-        }
-
-        Headers headers =
-                exchange.getResponseHeaders();
-
-        headers.set(
-                "Content-Type",
-                "text/event-stream"
-        );
-
-        headers.set(
-                "Cache-Control",
-                "no-cache"
-        );
-
-        headers.set(
-                "Connection",
-                "keep-alive"
-        );
-
-        headers.set(
-                "Access-Control-Allow-Origin",
-                "*"
-        );
-
-        exchange.sendResponseHeaders(
-                200,
-                0
-        );
-
-        SseClient client =
-                new SseClient(
-                        exchange.getResponseBody()
-                );
-
+    private void stream(HttpExchange ex) throws IOException {
+        if (!authorized(ex)) { send(ex, 401, Map.of("error", "Unauthorized")); return; }
+        cors(ex);
+        ex.getResponseHeaders().set("Content-Type", "text/event-stream; charset=utf-8");
+        ex.getResponseHeaders().set("Cache-Control", "no-cache");
+        ex.getResponseHeaders().set("Connection", "keep-alive");
+        ex.sendResponseHeaders(200, 0);
+        SseClient client = new SseClient(ex.getResponseBody());
         realtimeManager.addClient(client);
-
-        client.send(
-                gson.toJson(
-                        RealtimeSnapshot.create(
-                                plugin
-                        )
-                )
-        );
+        client.send(gson.toJson(RealtimeSnapshot.create(plugin)));
     }
 
-    private boolean authorized(
-            HttpExchange exchange
-    ) {
-
-        if (!plugin.getConfig().getBoolean(
-                "web.authentication.enabled",
-                true
-        )) {
-            return true;
-        }
-
-        String supplied =
-                exchange.getRequestHeaders()
-                        .getFirst("Authorization");
-
+    private boolean authorized(HttpExchange ex) {
+        if (!plugin.getConfig().getBoolean("web.authentication.enabled", true)) return true;
+        String supplied = ex.getRequestHeaders().getFirst("Authorization");
         if (supplied == null) {
-            return false;
+            String token = queryToken(ex.getRequestURI());
+            supplied = token == null ? null : "Bearer " + token;
         }
-
-        String expected =
-                "Bearer "
-                        + plugin.getTokenManager()
-                        .getToken();
-
-        return supplied.equals(expected);
+        return supplied != null && supplied.equals("Bearer " + plugin.getTokenManager().getToken());
     }
 
-    private void unauthorized(
-            HttpExchange exchange
-    ) throws IOException {
-
-        send(
-                exchange,
-                401,
-                Map.of(
-                        "error",
-                        "Unauthorized"
-                )
-        );
+    private String queryToken(URI uri) {
+        String q = uri.getRawQuery();
+        if (q == null) return null;
+        for (String part : q.split("&")) {
+            String[] kv = part.split("=", 2);
+            if (kv.length == 2 && kv[0].equals("token"))
+                return URLDecoder.decode(kv[1], StandardCharsets.UTF_8);
+        }
+        return null;
     }
 
-    private void send(
-            HttpExchange exchange,
-            int status,
-            Object object
-    ) throws IOException {
-
-        byte[] data =
-                gson.toJson(object)
-                        .getBytes(
-                                StandardCharsets.UTF_8
-                        );
-
-        exchange.getResponseHeaders()
-                .set(
-                        "Content-Type",
-                        "application/json; charset=utf-8"
-                );
-
-        exchange.getResponseHeaders()
-                .set(
-                        "Access-Control-Allow-Origin",
-                        "*"
-                );
-
-        exchange.sendResponseHeaders(
-                status,
-                data.length
-        );
-
-        try (OutputStream output =
-                     exchange.getResponseBody()) {
-
-            output.write(data);
+    private void serveStatic(HttpExchange ex, String path) throws IOException {
+        String resource = path.equals("/") ? "/web/index.html" : "/web" + path;
+        try (InputStream in = TickScopeWebServer.class.getResourceAsStream(resource)) {
+            if (in == null) { send(ex, 404, Map.of("error", "Web resource not found")); return; }
+            byte[] data = in.readAllBytes();
+            String type = path.endsWith(".html") || path.equals("/") ? "text/html; charset=utf-8"
+                    : path.endsWith(".js") ? "application/javascript; charset=utf-8"
+                    : "text/css; charset=utf-8";
+            cors(ex);
+            ex.getResponseHeaders().set("Content-Type", type);
+            ex.sendResponseHeaders(200, data.length);
+            try (OutputStream out = ex.getResponseBody()) { out.write(data); }
         }
+    }
+
+    private void cors(HttpExchange ex) {
+        ex.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+        ex.getResponseHeaders().set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+        ex.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    }
+
+    private void send(HttpExchange ex, int status, Object value) throws IOException {
+        byte[] data = gson.toJson(value).getBytes(StandardCharsets.UTF_8);
+        cors(ex);
+        ex.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+        ex.sendResponseHeaders(status, data.length);
+        try (OutputStream out = ex.getResponseBody()) { out.write(data); }
     }
 
     public void stop() {
-
-        if (realtimeManager != null) {
-            realtimeManager.stop();
-            realtimeManager = null;
-        }
-
-        if (server != null) {
-            server.stop(0);
-            server = null;
-        }
+        if (realtimeManager != null) { realtimeManager.stop(); realtimeManager = null; }
+        if (server != null) { server.stop(0); server = null; }
     }
-                    }
+}

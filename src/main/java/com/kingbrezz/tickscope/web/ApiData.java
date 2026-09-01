@@ -49,25 +49,21 @@ public final class ApiData {
             TickScope plugin
     ) {
 
-        return plugin.getEntityAnalyzer()
-                .scan();
+        return plugin.getAnalysisManager().getEntities();
     }
 
     public static List<LagHotspot> tileEntities(
             TickScope plugin
     ) {
 
-        return plugin.getTileEntityAnalyzer()
-                .scan();
+        return plugin.getAnalysisManager().getTiles();
     }
 
     public static List<LagHotspot> hotspots(
             TickScope plugin
     ) {
 
-        return plugin.getAnalysisManager()
-                .getHotspotAnalyzer()
-                .scan();
+        return plugin.getAnalysisManager().getHotspots();
     }
 
     public static List<Recommendation> recommendations(
