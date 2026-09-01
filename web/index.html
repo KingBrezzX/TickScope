@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>TickScope Dashboard</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header class="topbar">
+    <div>
+        <h1>TickScope</h1>
+        <span>Server Performance Monitor</span>
+    </div>
+
+    <div class="status">
+        <span id="statusDot"></span>
+        <span id="connection">Connecting...</span>
+    </div>
+</header>
+
+<main>
+
+    <section class="cards">
+
+        <div class="card">
+            <span>TPS</span>
+            <strong id="tps">--</strong>
+            <small>Ticks Per Second</small>
+        </div>
+
+        <div class="card">
+            <span>MSPT</span>
+            <strong id="mspt">--</strong>
+            <small>Milliseconds Per Tick</small>
+        </div>
+
+        <div class="card">
+            <span>Players</span>
+            <strong id="players">--</strong>
+            <small>Online Players</small>
+        </div>
+
+        <div class="card">
+            <span>Chunks</span>
+            <strong id="chunks">--</strong>
+            <small>Loaded Chunks</small>
+        </div>
+
+        <div class="card">
+            <span>Entities</span>
+            <strong id="entities">--</strong>
+            <small>Loaded Entities</small>
+        </div>
+
+        <div class="card">
+            <span>Tile Entities</span>
+            <strong id="tiles">--</strong>
+            <small>Loaded Tile Entities</small>
+        </div>
+
+    </section>
+
+
+    <section class="panel">
+
+        <div class="panel-title">
+            <h2>Performance Analysis</h2>
+            <span id="severity">WAITING</span>
+        </div>
+
+        <div class="analysis">
+
+            <div class="analysis-row">
+                <span>TPS Health</span>
+
+                <div class="bar">
+                    <div id="tpsBar"></div>
+                </div>
+            </div>
+
+            <div class="analysis-row">
+                <span>MSPT Load</span>
+
+                <div class="bar">
+                    <div id="msptBar"></div>
+                </div>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <section class="panel">
+
+        <div class="panel-title">
+            <h2>Lag Hotspots</h2>
+            <button onclick="loadHotspots()">Refresh</button>
+        </div>
+
+        <div id="hotspots" class="list">
+            Loading...
+        </div>
+
+    </section>
+
+
+    <section class="panel">
+
+        <div class="panel-title">
+            <h2>Redstone Hotspots</h2>
+            <button onclick="loadRedstone()">Refresh</button>
+        </div>
+
+        <div id="redstone" class="list">
+            Loading...
+        </div>
+
+    </section>
+
+
+    <section class="panel">
+
+        <div class="panel-title">
+            <h2>AI Recommendations</h2>
+            <button onclick="loadRecommendations()">Analyze</button>
+        </div>
+
+        <div id="recommendations" class="list">
+            Waiting for analysis...
+        </div>
+
+    </section>
+
+</main>
+
+<footer>
+    TickScope • Paper 26.2 • Java 25
+</footer>
+
+<script src="app.js"></script>
+
+</body>
+              </html>
