@@ -1,15 +1,13 @@
-￼# TickScope
-# Advanced Minecraft Server Performance Monitor
-# Author: KingBrezz
-
+# TickScope - release configuration
 monitor:
   enabled: true
+  metrics-interval-ms: 1000
   interval-ms: 1000
 
 thresholds:
-  warning-mspt: 40
-  critical-mspt: 50
-  spike-mspt: 50
+  warning-mspt: 40.0
+  critical-mspt: 50.0
+  spike-mspt: 50.0
 
 analysis:
   chunks: true
@@ -23,29 +21,52 @@ analysis:
 
 hotspots:
   enabled: true
-  radius: 16
+  scan-interval-ms: 5000
+  radius: 32
   max-results: 50
+  max-loaded-chunks: 1000
   track-nearby-player: true
   accurate-coordinates: true
 
 history:
   enabled: true
   retention-days: 7
-  cleanup-interval-hours: 168
+  cleanup-interval-hours: 24
+  max-spikes: 200
 
 recommendations:
   enabled: true
   automatic: true
 
+spikes:
+  interval-ms: 1000
+
 web:
   enabled: true
   host: "127.0.0.1"
   port: 8765
-
   authentication:
     enabled: true
     auto-generate-token: true
-
   realtime:
     enabled: true
     interval-ms: 1000
+
+# Explicit administrator remediation actions.
+# These actions are NEVER automatic unless auto-ban is explicitly requested by an admin.
+admin-actions:
+  enabled: true
+  break:
+    radius: 0
+    replace-core-with-sign: true
+  sign:
+    lines:
+      - "&c&lLAG MACHINE"
+      - "&7Disabled by"
+      - "&bTickScope"
+      - "&8Admin Action"
+  ban:
+    enabled: true
+    duration-days: 7
+    reason: "Lag machine detected"
+    auto-ban-on-destroy: true

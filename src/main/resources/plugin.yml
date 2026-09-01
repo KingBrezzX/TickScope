@@ -3,16 +3,20 @@ version: 1.0.0
 main: com.kingbrezz.tickscope.TickScope
 api-version: '26.2'
 author: KingBrezz
-description: Advanced Minecraft server performance monitoring and lag analysis.
+description: Advanced real-time Minecraft server performance, lag hotspot, redstone, entity, tile entity and spike monitoring.
 
 commands:
   tickscope:
-    description: Main TickScope command
-    usage: /tickscope <status|lag|history|recommend|reload>
-    aliases:
-      - ts
+    description: TickScope administration command
+    usage: /tickscope <status|token|reload|destroy|ban>
+    aliases: [ts]
+    permission: tickscope.admin
+  token:
+    description: Show the TickScope server dashboard token
+    usage: /token
+    permission: tickscope.admin
 
 permissions:
   tickscope.admin:
-    description: Access to all TickScope features
+    description: Access to TickScope administration and dashboard token
     default: op
