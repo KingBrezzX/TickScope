@@ -1,41 +1,18 @@
 package com.kingbrezz.tickscope.monitor;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public final class SpikeHistory {
+    private final List<SpikeEvent> events = new ArrayList<>();
 
-    private static final int MAX_EVENTS = 200;
+    public synchronized void add(SpikeEvent event) { events.add(event); }
 
-    private final List<SpikeEvent> events =
-            Collections.synchronizedList(
-                    new ArrayList<>()
-            );
+    public synchronized List<SpikeEvent> getEvents() { return List.copyOf(events); }
 
-    public void add(SpikeEvent event) {
-
-        synchronized (events) {
-
-            events.add(event);
-
-            while (events.size() > MAX_EVENTS) {
-                events.remove(0);
-            }
-        }
+    public synchronized void trimTo(int max) {
+        while (events.size() > max) events.remove(0);
     }
 
-    public List<SpikeEvent> getEvents() {
-
-        synchronized (events) {
-            return List.copyOf(events);
-        }
-    }
-
-    public void clear() {
-
-        synchronized (events) {
-            events.clear();
-        }
-    }
+    public synchronized void clear() { events.clear(); }
 }
