@@ -17,7 +17,8 @@ import java.util.concurrent.Executors;
 public final class TickScopeWebServer {
 
     private final TickScope plugin;
-    private final Gson gson = new GsonBuilder().create();
+    private final Gson gson =
+            new GsonBuilder().create();
 
     private HttpServer server;
     private RealtimeManager realtimeManager;
@@ -28,14 +29,23 @@ public final class TickScopeWebServer {
 
     public void start() throws IOException {
 
-        String host = plugin.getConfig()
-                .getString("web.host", "127.0.0.1");
+        String host =
+                plugin.getConfig().getString(
+                        "web.host",
+                        "127.0.0.1"
+                );
 
-        int port = plugin.getConfig()
-                .getInt("web.port", 8765);
+        int port =
+                plugin.getConfig().getInt(
+                        "web.port",
+                        8765
+                );
 
         server = HttpServer.create(
-                new InetSocketAddress(host, port),
+                new InetSocketAddress(
+                        host,
+                        port
+                ),
                 0
         );
 
@@ -55,6 +65,16 @@ public final class TickScopeWebServer {
         server.createContext(
                 "/api/server",
                 this::handleServer
+        );
+
+        server.createContext(
+                "/api/uptime",
+                this::handleUptime
+        );
+
+        server.createContext(
+                "/api/spikes",
+                this::handleSpikes
         );
 
         server.createContext(
@@ -148,6 +168,38 @@ public final class TickScopeWebServer {
                 exchange,
                 200,
                 ApiUtil.serverInfo(plugin)
+        );
+    }
+
+    private void handleUptime(
+            HttpExchange exchange
+    ) throws IOException {
+
+        if (!authorized(exchange)) {
+            unauthorized(exchange);
+            return;
+        }
+
+        send(
+                exchange,
+                200,
+                UptimeApi.get(plugin)
+        );
+    }
+
+    private void handleSpikes(
+            HttpExchange exchange
+    ) throws IOException {
+
+        if (!authorized(exchange)) {
+            unauthorized(exchange);
+            return;
+        }
+
+        send(
+                exchange,
+                200,
+                SpikeApi.get(plugin)
         );
     }
 
@@ -373,4 +425,4 @@ public final class TickScopeWebServer {
             server = null;
         }
     }
-            }
+                    }
