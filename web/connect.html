@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#080b12"
+    >
+
+    <title>Connect — TickScope</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+</head>
+
+<body>
+
+<main class="connect-page">
+
+    <section class="connect-card">
+
+        <div class="connect-logo">
+            TS
+        </div>
+
+        <h1>
+            Connect Server
+        </h1>
+
+        <p>
+            Connect your TickScope dashboard
+            to your Minecraft server.
+        </p>
+
+
+        <label for="apiUrl">
+            Server API URL
+        </label>
+
+        <input
+            id="apiUrl"
+            type="url"
+            placeholder="http://127.0.0.1:8765"
+            autocomplete="off"
+        >
+
+
+        <label for="serverToken">
+            Server Token
+        </label>
+
+        <input
+            id="serverToken"
+            type="password"
+            placeholder="TS_xxxxxxxxxxxxxxxxx"
+            autocomplete="off"
+        >
+
+
+        <button
+            id="connectButton"
+            type="button"
+            onclick="connectServer()"
+        >
+            Connect
+        </button>
+
+
+        <div
+            id="connectStatus"
+            class="connect-status"
+        ></div>
+
+
+        <div class="security-note">
+
+            <strong>
+                Security
+            </strong>
+
+            <span>
+                Your token is stored locally
+                in this browser and is not
+                uploaded to GitHub.
+            </span>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<script>
+
+function connectServer() {
+
+    const apiUrl =
+        document
+            .getElementById("apiUrl")
+            .value
+            .trim()
+            .replace(/\/+$/, "");
+
+    const token =
+        document
+            .getElementById("serverToken")
+            .value
+            .trim();
+
+    const status =
+        document.getElementById(
+            "connectStatus"
+        );
+
+    if (!apiUrl) {
+
+        status.textContent =
+            "Enter the server API URL.";
+
+        return;
+    }
+
+    if (!token) {
+
+        status.textContent =
+            "Enter the server token.";
+
+        return;
+    }
+
+
+    status.textContent =
+        "Testing connection...";
+
+
+    fetch(
+        apiUrl + "/api/health",
+        {
+            headers: {
+                "Authorization":
+                    "Bearer " + token
+            }
+        }
+    )
+    .then(response => {
+
+        if (!response.ok) {
+            throw new Error(
+                "HTTP " + response.status
+            );
+        }
+
+        return response.json();
+
+    })
+    .then(() => {
+
+        localStorage.setItem(
+            "tickscope_api",
+            apiUrl
+        );
+
+        localStorage.setItem(
+            "tickscope_token",
+            token
+        );
+
+        status.textContent =
+            "Connected successfully.";
+
+        setTimeout(() => {
+
+            window.location.href =
+                "index.html";
+
+        }, 500);
+
+    })
+    .catch(error => {
+
+        console.error(error);
+
+        status.textContent =
+            "Connection failed. Check URL, port and token.";
+
+    });
+}
+
+</script>
+
+</body>
+</html>
