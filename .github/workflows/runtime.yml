@@ -8,18 +8,53 @@ on:
 permissions:
   contents: read
 
+env:
+  API_HOST: 127.0.0.1
+  API_PORT: 19132
+  API_BASE: http://127.0.0.1:19132
+  PAPER_VERSION: 26.2
+  PAPER_BUILD: 121
+
 jobs:
   runtime:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '25'
           cache: maven
-      - name: Build plugin
-        run: mvn -B --no-transfer-progress -DskipTests clean package
+
+      - name: Build TickScope JAR
+        run: |
+          set -euo pipefail
+          mvn -B --no-transfer-progress -DskipTests clean package
+
+          echo "=== Generated JARs ==="
+          find target -maxdepth 1 -type f -name '*.jar' -print -exec ls -lh {} \;
+
+          # Prefer the normal plugin JAR and ignore sources/javadoc jars.
+          JAR="$(find target -maxdepth 1 -type f -name '*.jar' \
+            ! -name '*-sources.jar' \
+            ! -name '*-javadoc.jar' | head -n 1)"
+
+          test -n "$JAR"
+          echo "PLUGIN_JAR=$JAR" >> "$GITHUB_ENV"
+          echo "Using plugin JAR: $JAR"
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TickScope-Paper-26.2-Java-25
+          path: ${{ env.PLUGIN_JAR }}
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Download Paper 26.2 build 121
         env:
           UA: TickScope-CI/1.0 (https://github.com/)
@@ -27,41 +62,182 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq jq curl
-          response=$(curl -fsSL -H "User-Agent: $UA" https://fill.papermc.io/v3/projects/paper/versions/26.2/builds)
-          url=$(echo "$response" | jq -r 'map(select(.id == 121 and .channel == "STABLE"))[0].downloads["server:default"].url')
+
+          response=$(curl -fsSL -H "User-Agent: $UA" \
+            "https://fill.papermc.io/v3/projects/paper/versions/${PAPER_VERSION}/builds")
+
+          url=$(echo "$response" | jq -r \
+            'map(select(.id == 121 and .channel == "STABLE"))[0].downloads["server:default"].url')
+
           test "$url" != "null"
+          test -n "$url"
+
+          echo "Downloading Paper ${PAPER_VERSION} build ${PAPER_BUILD}"
           curl -fL -H "User-Agent: $UA" "$url" -o paper.jar
+          ls -lh paper.jar
+
       - name: Start isolated Paper server
         run: |
           set -euo pipefail
-          mkdir -p test-server/plugins
-          cp target/TickScope-1.0.0.jar test-server/plugins/
+
+          mkdir -p test-server/plugins/TickScope
+
+          cp "$PLUGIN_JAR" test-server/plugins/
           printf 'eula=true\n' > test-server/eula.txt
-          printf 'server-port=25565\nserver-ip=127.0.0.1\nonline-mode=false\n' > test-server/server.properties
+
+          # Minecraft itself stays on 25565.
+          # TickScope HTTP API is exposed separately on 19132.
+          printf 'server-port=25565\nserver-ip=127.0.0.1\nonline-mode=false\n' \
+            > test-server/server.properties
+
           cp paper.jar test-server/paper.jar
+
           cd test-server
           (java -Xms1G -Xmx1G -jar paper.jar --nogui > server.log 2>&1 & echo $! > server.pid)
-          for i in $(seq 1 120); do grep -q 'Done (' server.log && break; grep -q 'ERROR' server.log && { cat server.log; exit 1; } || true; sleep 2; done
+
+          echo "Waiting for Paper/TickScope startup..."
+          for i in $(seq 1 120); do
+            if grep -q 'Done (' server.log; then
+              break
+            fi
+
+            if grep -qE '\[TickScope\].*API listening on.*:19132' server.log; then
+              echo "TickScope API listener detected."
+            fi
+
+            if grep -qE 'ERROR|Exception in thread|Could not load' server.log; then
+              cat server.log
+              exit 1
+            fi
+
+            sleep 2
+          done
+
           grep -q 'Done (' server.log
           grep -q 'TickScope enabled' server.log
-      - name: Verify API health and auth
+          grep -qE 'TickScope.*API listening on.*:19132' server.log
+
+          echo "=== TickScope startup ==="
+          grep -E 'TickScope|API listening' server.log | tail -30 || true
+
+      - name: Verify API health
         run: |
           set -euo pipefail
-          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:19132/api/health && break || sleep 1; done
-          curl -fsS http://127.0.0.1:19132/api/health | grep -q '"status":"ok"'
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:19132/api/status)" = "401"
-          token=$(cat test-server/plugins/TickScope/server.token)
-          curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:19132/api/status | grep -q '"tps"'
-          curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:19132/api/server | grep -q '"apiOnline":true'
-          curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:19132/api/v1/all | grep -q '"success":true'
-          curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:19132/api/v1/all | grep -q '"tps"'
+
+          echo "Testing $API_BASE/api/health"
+          for i in $(seq 1 30); do
+            if curl -fsS "$API_BASE/api/health"; then
+              echo
+              break
+            fi
+            sleep 1
+          done
+
+          health=$(curl -fsS "$API_BASE/api/health")
+          echo "$health"
+          echo "$health" | grep -q '"status":"ok"'
+          echo "$health" | grep -q '"plugin":"TickScope"'
+
+      - name: Verify API authentication
+        run: |
+          set -euo pipefail
+
+          echo "Checking that protected endpoints reject unauthenticated requests"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$API_BASE/api/status")
+          test "$code" = "401"
+
+          token_file="test-server/plugins/TickScope/server.token"
+          test -f "$token_file"
+          token=$(tr -d '\r\n' < "$token_file")
+          test -n "$token"
+
+          echo "Authenticated /api/status"
+          curl -fsS \
+            -H "Authorization: Bearer $token" \
+            "$API_BASE/api/status" | tee /tmp/status.json
+          grep -q '"tps"' /tmp/status.json
+
+          echo "Authenticated /api/server"
+          curl -fsS \
+            -H "Authorization: Bearer $token" \
+            "$API_BASE/api/server" | tee /tmp/server.json
+          grep -q '"apiOnline":true' /tmp/server.json
+
+      - name: Verify /api/v1/all
+        run: |
+          set -euo pipefail
+
+          token_file="test-server/plugins/TickScope/server.token"
+          token=$(tr -d '\r\n' < "$token_file")
+          test -n "$token"
+
+          echo "Testing $API_BASE/api/v1/all"
+          curl -fsS \
+            -H "Authorization: Bearer $token" \
+            -H "Accept: application/json" \
+            "$API_BASE/api/v1/all" | tee /tmp/all.json
+
+          echo
+          echo "=== /api/v1/all response ==="
+          cat /tmp/all.json
+          echo
+
+          # Required top-level success flag.
+          grep -q '"success":true' /tmp/all.json
+
+          # The combined endpoint must contain core server telemetry.
+          grep -q '"data"' /tmp/all.json
+          grep -q '"tps"' /tmp/all.json
+          grep -q '"mspt"' /tmp/all.json
+          grep -q '"players"' /tmp/all.json
+          grep -q '"entities"' /tmp/all.json
+          grep -q '"tileEntities"' /tmp/all.json
+
+      - name: Verify /api/v1/all with query token
+        run: |
+          set -euo pipefail
+
+          token_file="test-server/plugins/TickScope/server.token"
+          token=$(tr -d '\r\n' < "$token_file")
+          test -n "$token"
+
+          echo "Testing query-token authentication"
+          curl -fsS \
+            -H "Accept: application/json" \
+            "$API_BASE/api/v1/all?token=$token" | tee /tmp/all-query.json
+
+          grep -q '"success":true' /tmp/all-query.json
+          grep -q '"tps"' /tmp/all-query.json
+
       - name: Verify SSE stream
         run: |
-          token=$(cat test-server/plugins/TickScope/server.token)
-          timeout 8s curl -fsS -N -H "Authorization: Bearer $token" http://127.0.0.1:19132/api/v1/stream | grep -m1 '"type":"metrics"'
+          set -euo pipefail
+
+          token_file="test-server/plugins/TickScope/server.token"
+          token=$(tr -d '\r\n' < "$token_file")
+          test -n "$token"
+
+          echo "Testing SSE stream"
+          timeout 10s curl -fsS -N \
+            -H "Authorization: Bearer $token" \
+            -H "Accept: text/event-stream" \
+            "$API_BASE/api/v1/stream" \
+            | grep -m1 '"type":"metrics"'
+
+      - name: Print final server log
+        if: always()
+        run: |
+          echo "=== TickScope/Paper final log ==="
+          if [ -f test-server/server.log ]; then
+            tail -150 test-server/server.log
+          else
+            echo "server.log not found"
+          fi
+
       - name: Stop server cleanly
         if: always()
         run: |
-          if [ -f test-server/server.pid ]; then kill "$(cat test-server/server.pid)" || true; fi
+          if [ -f test-server/server.pid ]; then
+            kill "$(cat test-server/server.pid)" || true
+          fi
           sleep 2
-          if [ -f test-server/server.log ]; then tail -100 test-server/server.log; fi
