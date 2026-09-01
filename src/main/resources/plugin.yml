@@ -1,0 +1,18 @@
+name: TickScope
+version: 1.0.0
+main: com.kingbrezz.tickscope.TickScope
+api-version: '26.2'
+author: KingBrezz
+description: Advanced Minecraft server performance monitoring and lag analysis.
+
+commands:
+  tickscope:
+    description: Main TickScope command
+    usage: /tickscope <status|lag|history|recommend|reload>
+    aliases:
+      - ts
+
+permissions:
+  tickscope.admin:
+    description: Access to all TickScope features
+    default: op
