@@ -3,7 +3,7 @@ package com.kingbrezz.tickscope.web;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.kingbrezz.tickscope.TickScope;
-import com.kingbrezz.tickscope.monitor.MetricsSnapshot;
+import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
@@ -17,10 +17,10 @@ import java.util.concurrent.Executors;
 public final class TickScopeWebServer {
 
     private final TickScope plugin;
-    private final Gson gson =
-            new GsonBuilder().create();
+    private final Gson gson = new GsonBuilder().create();
 
     private HttpServer server;
+    private RealtimeManager realtimeManager;
 
     public TickScopeWebServer(TickScope plugin) {
         this.plugin = plugin;
@@ -28,24 +28,23 @@ public final class TickScopeWebServer {
 
     public void start() throws IOException {
 
-        String host =
-                plugin.getConfig().getString(
-                        "web.host",
-                        "127.0.0.1"
-                );
+        String host = plugin.getConfig()
+                .getString("web.host", "127.0.0.1");
 
-        int port =
-                plugin.getConfig().getInt(
-                        "web.port",
-                        8765
-                );
+        int port = plugin.getConfig()
+                .getInt("web.port", 8765);
 
         server = HttpServer.create(
-                new InetSocketAddress(
-                        host,
-                        port
-                ),
+                new InetSocketAddress(host, port),
                 0
+        );
+
+        realtimeManager =
+                new RealtimeManager(plugin);
+
+        server.createContext(
+                "/api/health",
+                this::handleHealth
         );
 
         server.createContext(
@@ -54,8 +53,38 @@ public final class TickScopeWebServer {
         );
 
         server.createContext(
-                "/api/health",
-                this::handleHealth
+                "/api/server",
+                this::handleServer
+        );
+
+        server.createContext(
+                "/api/hotspots",
+                this::handleHotspots
+        );
+
+        server.createContext(
+                "/api/redstone",
+                this::handleRedstone
+        );
+
+        server.createContext(
+                "/api/entities",
+                this::handleEntities
+        );
+
+        server.createContext(
+                "/api/tile-entities",
+                this::handleTileEntities
+        );
+
+        server.createContext(
+                "/api/recommendations",
+                this::handleRecommendations
+        );
+
+        server.createContext(
+                "/api/stream",
+                this::handleStream
         );
 
         server.setExecutor(
@@ -64,8 +93,10 @@ public final class TickScopeWebServer {
 
         server.start();
 
+        realtimeManager.start();
+
         plugin.getLogger().info(
-                "Web dashboard API started at http://"
+                "TickScope web API started on "
                         + host
                         + ":"
                         + port
@@ -93,25 +124,163 @@ public final class TickScopeWebServer {
     ) throws IOException {
 
         if (!authorized(exchange)) {
-            send(
-                    exchange,
-                    401,
-                    Map.of(
-                            "error",
-                            "Unauthorized"
-                    )
-            );
+            unauthorized(exchange);
             return;
         }
-
-        MetricsSnapshot snapshot =
-                plugin.getPerformanceMonitor()
-                        .collect();
 
         send(
                 exchange,
                 200,
-                snapshot
+                ApiData.status(plugin)
+        );
+    }
+
+    private void handleServer(
+            HttpExchange exchange
+    ) throws IOException {
+
+        if (!authorized(exchange)) {
+            unauthorized(exchange);
+            return;
+        }
+
+        send(
+                exchange,
+                200,
+                ApiUtil.serverInfo(plugin)
+        );
+    }
+
+    private void handleHotspots(
+            HttpExchange exchange
+    ) throws IOException {
+
+        if (!authorized(exchange)) {
+            unauthorized(exchange);
+            return;
+        }
+
+        send(
+                exchange,
+                200,
+                ApiData.hotspots(plugin)
+        );
+    }
+
+    private void handleRedstone(
+            HttpExchange exchange
+    ) throws IOException {
+
+        if (!authorized(exchange)) {
+            unauthorized(exchange);
+            return;
+        }
+
+        send(
+                exchange,
+                200,
+                ApiData.redstone(plugin)
+        );
+    }
+
+    private void handleEntities(
+            HttpExchange exchange
+    ) throws IOException {
+
+        if (!authorized(exchange)) {
+            unauthorized(exchange);
+            return;
+        }
+
+        send(
+                exchange,
+                200,
+                ApiData.entities(plugin)
+        );
+    }
+
+    private void handleTileEntities(
+            HttpExchange exchange
+    ) throws IOException {
+
+        if (!authorized(exchange)) {
+            unauthorized(exchange);
+            return;
+        }
+
+        send(
+                exchange,
+                200,
+                ApiData.tileEntities(plugin)
+        );
+    }
+
+    private void handleRecommendations(
+            HttpExchange exchange
+    ) throws IOException {
+
+        if (!authorized(exchange)) {
+            unauthorized(exchange);
+            return;
+        }
+
+        send(
+                exchange,
+                200,
+                ApiData.recommendations(plugin)
+        );
+    }
+
+    private void handleStream(
+            HttpExchange exchange
+    ) throws IOException {
+
+        if (!authorized(exchange)) {
+            unauthorized(exchange);
+            return;
+        }
+
+        Headers headers =
+                exchange.getResponseHeaders();
+
+        headers.set(
+                "Content-Type",
+                "text/event-stream"
+        );
+
+        headers.set(
+                "Cache-Control",
+                "no-cache"
+        );
+
+        headers.set(
+                "Connection",
+                "keep-alive"
+        );
+
+        headers.set(
+                "Access-Control-Allow-Origin",
+                "*"
+        );
+
+        exchange.sendResponseHeaders(
+                200,
+                0
+        );
+
+        SseClient client =
+                new SseClient(
+                        exchange.getResponseBody()
+                );
+
+        realtimeManager.addClient(client);
+
+        client.send(
+                gson.toJson(
+                        RealtimeSnapshot.create(
+                                plugin
+                        )
+                )
         );
     }
 
@@ -140,6 +309,20 @@ public final class TickScopeWebServer {
                         .getToken();
 
         return supplied.equals(expected);
+    }
+
+    private void unauthorized(
+            HttpExchange exchange
+    ) throws IOException {
+
+        send(
+                exchange,
+                401,
+                Map.of(
+                        "error",
+                        "Unauthorized"
+                )
+        );
     }
 
     private void send(
@@ -180,9 +363,14 @@ public final class TickScopeWebServer {
 
     public void stop() {
 
+        if (realtimeManager != null) {
+            realtimeManager.stop();
+            realtimeManager = null;
+        }
+
         if (server != null) {
             server.stop(0);
             server = null;
         }
     }
-  }
+            }
