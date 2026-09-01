@@ -32,7 +32,11 @@ public final class EntityAnalyzer {
 
         for (World world : plugin.getServer().getWorlds()) {
 
-            for (Chunk chunk : world.getLoadedChunks()) {
+            Chunk[] loadedChunks = world.getLoadedChunks();
+            int maxChunks = plugin.getConfig().getInt("hotspots.max-loaded-chunks", 1000);
+            int scanCount = maxChunks <= 0 ? loadedChunks.length : Math.min(maxChunks, loadedChunks.length);
+            for (int chunkIndex = 0; chunkIndex < scanCount; chunkIndex++) {
+                Chunk chunk = loadedChunks[chunkIndex];
 
                 Map<EntityType, Integer> counts = new HashMap<>();
 
