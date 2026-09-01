@@ -1,0 +1,16 @@
+name: ZyrexServerAnalyzer
+version: 1.0.0
+main: id.kingbrezz.zyrexanalyzer.ZyrexServerAnalyzer
+api-version: '26.2'
+author: KingBrezz
+description: Real-time server analytics, lag hotspot detection, history and AI recommendations with a web API.
+commands:
+  zsa:
+    description: Zyrex Server Analyzer commands
+    usage: /zsa <status|lag|history|recommend|reload|web>
+    permission: zsa.admin
+permissions:
+  zsa.admin:
+    default: op
+  zsa.web:
+    default: op
