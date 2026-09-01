@@ -1,23 +1,13 @@
-# TickScope Release Checklist
+# Release checklist
 
-- [x] Paper 26.2 API pinned to 26.2.build.121-stable
-- [x] Java 25 Maven compiler configuration
-- [x] Random per-server dashboard token
-- [x] `/token` admin command
-- [x] Authenticated REST API
-- [x] Authenticated realtime SSE
-- [x] GitHub Pages/local dashboard connection
-- [x] TPS/MSPT/uptime/players/chunks/entities/tile entities
-- [x] Lag hotspot coordinates and world
-- [x] Redstone activity and nearest-player context
-- [x] Spike history
-- [x] Admin Actions dashboard
-- [x] Configurable lag-machine break radius
-- [x] Configurable replacement sign text
-- [x] Configurable temporary-ban duration and reason
-- [x] Optional automatic tempban after destroy action
-- [x] Explicit confirmation before destructive web action
-- [x] Web admin endpoints require server token
-- [x] Build workflow uses Java 25
-- [ ] GitHub Actions build must pass before publishing a release
-- [ ] Smoke-test on Paper 26.2 build 121
+- [ ] TickScope CI — green
+- [ ] Java 25 build — green
+- [ ] Paper 26.2 runtime smoke — green
+- [ ] JAR artifact downloaded
+- [ ] Test server API health — green
+- [ ] API key authentication — green
+- [ ] SSE realtime — green
+- [ ] Local web — green
+- [ ] GitHub Pages — green
+- [ ] Public HTTPS API endpoint configured
+- [ ] Production key is NOT committed to Git
