@@ -47,16 +47,18 @@ jobs:
       - name: Verify API health and auth
         run: |
           set -euo pipefail
-          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8765/api/health && break || sleep 1; done
-          curl -fsS http://127.0.0.1:8765/api/health | grep -q '"status":"ok"'
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/api/status)" = "401"
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:19132/api/health && break || sleep 1; done
+          curl -fsS http://127.0.0.1:19132/api/health | grep -q '"status":"ok"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:19132/api/status)" = "401"
           token=$(cat test-server/plugins/TickScope/server.token)
-          curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:8765/api/status | grep -q '"tps"'
-          curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:8765/api/server | grep -q '"apiOnline":true'
+          curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:19132/api/status | grep -q '"tps"'
+          curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:19132/api/server | grep -q '"apiOnline":true'
+          curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:19132/api/v1/all | grep -q '"success":true'
+          curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:19132/api/v1/all | grep -q '"tps"'
       - name: Verify SSE stream
         run: |
           token=$(cat test-server/plugins/TickScope/server.token)
-          timeout 8s curl -fsS -N -H "Authorization: Bearer $token" http://127.0.0.1:8765/api/stream | grep -m1 '"type":"metrics"'
+          timeout 8s curl -fsS -N -H "Authorization: Bearer $token" http://127.0.0.1:19132/api/v1/stream | grep -m1 '"type":"metrics"'
       - name: Stop server cleanly
         if: always()
         run: |
