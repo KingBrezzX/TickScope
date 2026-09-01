@@ -8,6 +8,7 @@ import com.kingbrezz.tickscope.analysis.TileEntityAnalyzer;
 import com.kingbrezz.tickscope.command.TickScopeCommand;
 import com.kingbrezz.tickscope.history.HistoryManager;
 import com.kingbrezz.tickscope.history.HistoryScheduler;
+import com.kingbrezz.tickscope.i18n.MessageManager;
 import com.kingbrezz.tickscope.monitor.PerformanceMonitor;
 import com.kingbrezz.tickscope.monitor.SpikeDetector;
 import com.kingbrezz.tickscope.monitor.SpikeMonitor;
@@ -29,10 +30,12 @@ public final class TickScope extends JavaPlugin {
     private TokenManager tokenManager;
     private TickScopeWebServer webServer;
     private AdminActionManager adminActionManager;
+    private MessageManager messageManager;
 
     @Override public void onEnable() {
         instance = this;
         saveDefaultConfig();
+        messageManager = new MessageManager(this);
 
         tokenManager = new TokenManager(this);
         tokenManager.load();
@@ -92,6 +95,7 @@ public final class TickScope extends JavaPlugin {
         if (performanceMonitor != null) performanceMonitor.stop();
 
         reloadConfig();
+        if (messageManager != null) messageManager.reload();
 
         performanceMonitor.start();
         spikeDetector.start();
@@ -121,4 +125,5 @@ public final class TickScope extends JavaPlugin {
     public TokenManager getTokenManager() { return tokenManager; }
     public TickScopeWebServer getWebServer() { return webServer; }
     public AdminActionManager getAdminActionManager() { return adminActionManager; }
+    public MessageManager getMessageManager() { return messageManager; }
 }
