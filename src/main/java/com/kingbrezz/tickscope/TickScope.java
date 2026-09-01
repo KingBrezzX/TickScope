@@ -9,6 +9,7 @@ import com.kingbrezz.tickscope.history.HistoryManager;
 import com.kingbrezz.tickscope.history.HistoryScheduler;
 import com.kingbrezz.tickscope.monitor.PerformanceMonitor;
 import com.kingbrezz.tickscope.monitor.SpikeDetector;
+import com.kingbrezz.tickscope.monitor.SpikeMonitor;
 import com.kingbrezz.tickscope.web.TickScopeWebServer;
 import com.kingbrezz.tickscope.web.TokenManager;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -19,6 +20,7 @@ public final class TickScope extends JavaPlugin {
 
     private PerformanceMonitor performanceMonitor;
     private SpikeDetector spikeDetector;
+    private SpikeMonitor spikeMonitor;
 
     private AnalysisManager analysisManager;
     private EntityAnalyzer entityAnalyzer;
@@ -54,6 +56,14 @@ public final class TickScope extends JavaPlugin {
                 );
 
         spikeDetector.start();
+
+        spikeMonitor =
+                new SpikeMonitor(
+                        this,
+                        performanceMonitor
+                );
+
+        spikeMonitor.start();
 
         analysisManager =
                 new AnalysisManager(this);
@@ -125,8 +135,16 @@ public final class TickScope extends JavaPlugin {
             historyManager.save();
         }
 
+        if (spikeMonitor != null) {
+            spikeMonitor.stop();
+        }
+
         if (spikeDetector != null) {
             spikeDetector.stop();
+        }
+
+        if (performanceMonitor != null) {
+            performanceMonitor.stop();
         }
 
         getLogger().info(
@@ -146,6 +164,10 @@ public final class TickScope extends JavaPlugin {
 
     public SpikeDetector getSpikeDetector() {
         return spikeDetector;
+    }
+
+    public SpikeMonitor getSpikeMonitor() {
+        return spikeMonitor;
     }
 
     public AnalysisManager getAnalysisManager() {
