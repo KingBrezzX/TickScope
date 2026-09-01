@@ -22,7 +22,9 @@ public final class ApiEndpoints {
                 "/api/recommendations",
                 "/api/uptime",
                 "/api/spikes",
-                "/api/stream"
+                "/api/stream",
+                "/api/admin/destroy",
+                "/api/admin/ban"
         );
     }
 

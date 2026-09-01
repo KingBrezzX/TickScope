@@ -15,6 +15,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public final class TickScopeWebServer {
     private final TickScope plugin;
@@ -39,6 +40,7 @@ public final class TickScopeWebServer {
 
     private void route(HttpExchange ex) throws IOException {
         String path = ex.getRequestURI().getPath();
+        if (path.startsWith("/api/v1/")) path = "/api/" + path.substring("/api/v1/".length());
         if ("OPTIONS".equalsIgnoreCase(ex.getRequestMethod())) {
             cors(ex);
             ex.sendResponseHeaders(204, -1);
@@ -47,7 +49,7 @@ public final class TickScopeWebServer {
         }
 
         if (path.equals("/") || path.equals("/index.html") || path.equals("/connect.html")
-                || path.endsWith(".js") || path.endsWith(".css")) {
+                || path.endsWith(".js") || path.endsWith(".css") || path.endsWith(".ico") || path.endsWith(".json")) {
             serveStatic(ex, path);
             return;
         }
@@ -58,7 +60,7 @@ public final class TickScopeWebServer {
         }
 
         switch (path) {
-            case "/api/health" -> send(ex, 200, Map.of("status", "ok", "plugin", "TickScope"));
+            case "/api/health" -> send(ex, 200, Map.of("status", "ok", "plugin", "TickScope", "version", plugin.getDescription().getVersion(), "server", plugin.getServer().getName()));
             case "/api/status" -> send(ex, 200, ApiData.status(plugin));
             case "/api/server" -> send(ex, 200, ApiUtil.serverInfo(plugin));
             case "/api/uptime" -> send(ex, 200, UptimeApi.get(plugin));
@@ -90,8 +92,10 @@ public final class TickScopeWebServer {
         }
         boolean autoBan = body.has("autoBan") && body.get("autoBan").getAsBoolean();
         try {
-            send(ex, 200, AdminActionApi.destroy(plugin, world, body.get("x").getAsInt(),
-                    body.get("y").getAsInt(), body.get("z").getAsInt(), player, autoBan));
+            send(ex, 200, plugin.getServer().getScheduler().callSyncMethod(plugin, () ->
+                    AdminActionApi.destroy(plugin, world, body.get("x").getAsInt(),
+                            body.get("y").getAsInt(), body.get("z").getAsInt(), player, autoBan)
+            ).get(30, TimeUnit.SECONDS));
         } catch (IllegalArgumentException e) {
             send(ex, 400, Map.of("error", e.getMessage()));
         } catch (Exception e) {
@@ -111,13 +115,28 @@ public final class TickScopeWebServer {
             send(ex, 400, Map.of("error", "player is required"));
             return;
         }
-        send(ex, 200, AdminActionApi.ban(plugin, player));
+        try {
+            send(ex, 200, plugin.getServer().getScheduler().callSyncMethod(plugin, () ->
+                    AdminActionApi.ban(plugin, player)
+            ).get(30, TimeUnit.SECONDS));
+        } catch (IllegalArgumentException e) {
+            send(ex, 400, Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            plugin.getLogger().warning("Admin ban failed: " + e.getMessage());
+            send(ex, 500, Map.of("error", "Admin action failed"));
+        }
     }
 
     private JsonObject readJson(HttpExchange ex) throws IOException {
+        String contentType = ex.getRequestHeaders().getFirst("Content-Type");
+        if (contentType == null || !contentType.toLowerCase(java.util.Locale.ROOT).startsWith("application/json")) {
+            throw new IllegalArgumentException("Content-Type must be application/json");
+        }
         byte[] raw = ex.getRequestBody().readAllBytes();
-        if (raw.length > 32_768) throw new IOException("Request too large");
-        return gson.fromJson(new String(raw, StandardCharsets.UTF_8), JsonObject.class);
+        if (raw.length == 0 || raw.length > 32_768) throw new IOException("Invalid request body size");
+        JsonObject json = gson.fromJson(new String(raw, StandardCharsets.UTF_8), JsonObject.class);
+        if (json == null) throw new IllegalArgumentException("Invalid JSON body");
+        return json;
     }
 
     private void stream(HttpExchange ex) throws IOException {
@@ -154,6 +173,7 @@ public final class TickScopeWebServer {
     }
 
     private void serveStatic(HttpExchange ex, String path) throws IOException {
+        if (path.contains("..") || path.contains("\\")) { send(ex, 400, Map.of("error", "Invalid path")); return; }
         String resource = path.equals("/") ? "/web/index.html" : "/web" + path;
         try (InputStream in = TickScopeWebServer.class.getResourceAsStream(resource)) {
             if (in == null) { send(ex, 404, Map.of("error", "Web resource not found")); return; }
@@ -169,9 +189,21 @@ public final class TickScopeWebServer {
     }
 
     private void cors(HttpExchange ex) {
-        ex.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
-        ex.getResponseHeaders().set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+        if (!plugin.getConfig().getBoolean("web.cors.enabled", true)) return;
+        String requestOrigin = ex.getRequestHeaders().getFirst("Origin");
+        java.util.List<String> configuredOrigins = plugin.getConfig().getStringList("web.cors.allowed-origins");
+        String allow = configuredOrigins.isEmpty() || configuredOrigins.contains("*") ? "*" : "";
+        if (requestOrigin != null && !configuredOrigins.isEmpty() && !configuredOrigins.contains("*")) {
+            for (String origin : configuredOrigins) {
+                if (origin.trim().equals(requestOrigin)) { allow = requestOrigin; break; }
+            }
+        }
+        if (allow.isEmpty()) allow = configuredOrigins.isEmpty() ? "*" : configuredOrigins.get(0);
+        ex.getResponseHeaders().set("Access-Control-Allow-Origin", allow);
+        ex.getResponseHeaders().set("Vary", "Origin");
+        ex.getResponseHeaders().set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, Cache-Control");
         ex.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        ex.getResponseHeaders().set("Access-Control-Max-Age", "600");
     }
 
     private void send(HttpExchange ex, int status, Object value) throws IOException {
