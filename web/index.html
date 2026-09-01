@@ -2,93 +2,215 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#080b12"
+    >
 
     <title>TickScope Dashboard</title>
 
-    <link rel="stylesheet" href="style.css">
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
 </head>
 
 <body>
 
 <header class="topbar">
-    <div>
+
+    <div class="brand">
+
         <h1>TickScope</h1>
-        <span>Server Performance Monitor</span>
+
+        <span>
+            Server Performance Monitor
+        </span>
+
     </div>
 
     <div class="status">
+
         <span id="statusDot"></span>
-        <span id="connection">Connecting...</span>
+
+        <span id="connection">
+            Connecting...
+        </span>
+
     </div>
+
 </header>
 
+
 <main>
+
+    <!-- PERFORMANCE CARDS -->
 
     <section class="cards">
 
         <div class="card">
             <span>TPS</span>
-            <strong id="tps">--</strong>
-            <small>Ticks Per Second</small>
+
+            <strong id="tps">
+                --
+            </strong>
+
+            <small>
+                Ticks Per Second
+            </small>
         </div>
+
 
         <div class="card">
             <span>MSPT</span>
-            <strong id="mspt">--</strong>
-            <small>Milliseconds Per Tick</small>
+
+            <strong id="mspt">
+                --
+            </strong>
+
+            <small>
+                Milliseconds Per Tick
+            </small>
         </div>
+
 
         <div class="card">
             <span>Players</span>
-            <strong id="players">--</strong>
-            <small>Online Players</small>
+
+            <strong id="players">
+                --
+            </strong>
+
+            <small>
+                Online Players
+            </small>
         </div>
 
+
         <div class="card">
-            <span>Chunks</span>
-            <strong id="chunks">--</strong>
-            <small>Loaded Chunks</small>
+            <span>Loaded Chunks</span>
+
+            <strong id="chunks">
+                --
+            </strong>
+
+            <small>
+                Currently Loaded
+            </small>
         </div>
+
 
         <div class="card">
             <span>Entities</span>
-            <strong id="entities">--</strong>
-            <small>Loaded Entities</small>
+
+            <strong id="entities">
+                --
+            </strong>
+
+            <small>
+                Loaded Entities
+            </small>
         </div>
+
 
         <div class="card">
             <span>Tile Entities</span>
-            <strong id="tiles">--</strong>
-            <small>Loaded Tile Entities</small>
+
+            <strong id="tiles">
+                --
+            </strong>
+
+            <small>
+                Loaded Tile Entities
+            </small>
         </div>
 
     </section>
 
 
+    <!-- PERFORMANCE ANALYSIS -->
+
     <section class="panel">
 
         <div class="panel-title">
-            <h2>Performance Analysis</h2>
-            <span id="severity">WAITING</span>
+
+            <div>
+                <h2>
+                    Performance Analysis
+                </h2>
+
+                <p>
+                    Real-time server health
+                </p>
+            </div>
+
+            <span
+                id="severity"
+                class="severity"
+            >
+                WAITING
+            </span>
+
         </div>
+
 
         <div class="analysis">
 
             <div class="analysis-row">
-                <span>TPS Health</span>
+
+                <div class="analysis-label">
+
+                    <span>
+                        TPS Health
+                    </span>
+
+                    <strong id="tpsValue">
+                        --
+                    </strong>
+
+                </div>
 
                 <div class="bar">
-                    <div id="tpsBar"></div>
+
+                    <div
+                        id="tpsBar"
+                        class="bar-fill"
+                    ></div>
+
                 </div>
+
             </div>
+
 
             <div class="analysis-row">
-                <span>MSPT Load</span>
+
+                <div class="analysis-label">
+
+                    <span>
+                        MSPT Load
+                    </span>
+
+                    <strong id="msptValue">
+                        --
+                    </strong>
+
+                </div>
 
                 <div class="bar">
-                    <div id="msptBar"></div>
+
+                    <div
+                        id="msptBar"
+                        class="bar-fill"
+                    ></div>
+
                 </div>
+
             </div>
 
         </div>
@@ -96,54 +218,236 @@
     </section>
 
 
+    <!-- LAG HOTSPOTS -->
+
     <section class="panel">
 
         <div class="panel-title">
-            <h2>Lag Hotspots</h2>
-            <button onclick="loadHotspots()">Refresh</button>
+
+            <div>
+
+                <h2>
+                    Lag Hotspots
+                </h2>
+
+                <p>
+                    Highest detected workload locations
+                </p>
+
+            </div>
+
+            <button
+                type="button"
+                onclick="loadHotspots()"
+            >
+                Refresh
+            </button>
+
         </div>
 
-        <div id="hotspots" class="list">
-            Loading...
+
+        <div
+            id="hotspots"
+            class="list"
+        >
+            <div class="empty">
+                Loading...
+            </div>
         </div>
 
     </section>
 
 
+    <!-- REDSTONE -->
+
     <section class="panel">
 
         <div class="panel-title">
-            <h2>Redstone Hotspots</h2>
-            <button onclick="loadRedstone()">Refresh</button>
+
+            <div>
+
+                <h2>
+                    Redstone Hotspots
+                </h2>
+
+                <p>
+                    Real-time redstone activity
+                </p>
+
+            </div>
+
+            <button
+                type="button"
+                onclick="loadRedstone()"
+            >
+                Refresh
+            </button>
+
         </div>
 
-        <div id="redstone" class="list">
-            Loading...
+
+        <div
+            id="redstone"
+            class="list"
+        >
+            <div class="empty">
+                Loading...
+            </div>
         </div>
 
     </section>
 
 
+    <!-- RECOMMENDATIONS -->
+
     <section class="panel">
 
         <div class="panel-title">
-            <h2>AI Recommendations</h2>
-            <button onclick="loadRecommendations()">Analyze</button>
+
+            <div>
+
+                <h2>
+                    Analysis & Recommendations
+                </h2>
+
+                <p>
+                    Automatic performance analysis
+                </p>
+
+            </div>
+
+            <button
+                type="button"
+                onclick="loadRecommendations()"
+            >
+                Analyze
+            </button>
+
         </div>
 
-        <div id="recommendations" class="list">
-            Waiting for analysis...
+
+        <div
+            id="recommendations"
+            class="list"
+        >
+            <div class="empty">
+                Waiting for analysis...
+            </div>
+        </div>
+
+    </section>
+
+
+    <!-- SERVER INFO -->
+
+    <section class="panel">
+
+        <div class="panel-title">
+
+            <div>
+
+                <h2>
+                    Server Information
+                </h2>
+
+                <p>
+                    Current server connection
+                </p>
+
+            </div>
+
+            <button
+                type="button"
+                onclick="loadServerInfo()"
+            >
+                Refresh
+            </button>
+
+        </div>
+
+
+        <div
+            id="serverInfo"
+            class="server-grid"
+        >
+
+            <div class="info-box">
+
+                <span>
+                    Plugin
+                </span>
+
+                <strong id="pluginVersion">
+                    --
+                </strong>
+
+            </div>
+
+
+            <div class="info-box">
+
+                <span>
+                    Minecraft
+                </span>
+
+                <strong id="minecraftVersion">
+                    --
+                </strong>
+
+            </div>
+
+
+            <div class="info-box">
+
+                <span>
+                    Java
+                </span>
+
+                <strong id="javaVersion">
+                    --
+                </strong>
+
+            </div>
+
+
+            <div class="info-box">
+
+                <span>
+                    Worlds
+                </span>
+
+                <strong id="worldCount">
+                    --
+                </strong>
+
+            </div>
+
         </div>
 
     </section>
 
 </main>
 
+
 <footer>
-    TickScope • Paper 26.2 • Java 25
+
+    TickScope
+    <span>•</span>
+    Server Performance Monitor
+
 </footer>
+
+
+<!--
+    IMPORTANT:
+    config.js MUST load before app.js.
+    Never put the server token directly
+    into this HTML file.
+-->
+
+<script src="config.js"></script>
 
 <script src="app.js"></script>
 
 </body>
-              </html>
+                </html>
