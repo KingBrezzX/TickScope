@@ -1,0 +1,51 @@
+￼# TickScope
+# Advanced Minecraft Server Performance Monitor
+# Author: KingBrezz
+
+monitor:
+  enabled: true
+  interval-ms: 1000
+
+thresholds:
+  warning-mspt: 40
+  critical-mspt: 50
+  spike-mspt: 50
+
+analysis:
+  chunks: true
+  entities: true
+  tile-entities: true
+  redstone: true
+  block-updates: true
+  fluids: true
+  player-activity: true
+  chunk-loading: true
+
+hotspots:
+  enabled: true
+  radius: 16
+  max-results: 50
+  track-nearby-player: true
+  accurate-coordinates: true
+
+history:
+  enabled: true
+  retention-days: 7
+  cleanup-interval-hours: 168
+
+recommendations:
+  enabled: true
+  automatic: true
+
+web:
+  enabled: true
+  host: "127.0.0.1"
+  port: 8765
+
+  authentication:
+    enabled: true
+    auto-generate-token: true
+
+  realtime:
+    enabled: true
+    interval-ms: 1000
